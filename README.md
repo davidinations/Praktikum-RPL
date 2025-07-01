@@ -12,6 +12,10 @@
     -   Jalankan perintah `php artisan serve` untuk menjalankan server lokal.
     -   Buka browser dan akses `http://localhost:8000` untuk melihat aplikasi.
 
+# TO DO
+
+-   Perbaiki Logika Pada SAW Pada app/Services/SAWCalculationService.php
+
 # Gambar ERD
 
 ![ERD Database](ERDDatabase.png)
