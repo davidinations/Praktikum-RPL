@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laptop Website</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     <!-- Include Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -26,10 +27,25 @@
             <h1 class="h4">Laptop Store</h1>
             <div>
                 <a href="{{ url('/') }}" class="text-light text-decoration-none me-3">Home</a>
-                <a href="" class="text-light text-decoration-none">Log in</a>
+                <a href="{{ route('login') }}" class="text-light text-decoration-none me-3">Login</a>
+                <a href="{{ route('register') }}" class="text-light text-decoration-none">Register</a>
             </div>
         </div>
     </header>
+
+    <!-- Welcome Section -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h2 class="display-4">Welcome to Laptop Store</h2>
+                <p class="lead">Find the perfect laptop that matches your needs and budget</p>
+                <div class="mt-3">
+                    <a href="{{ route('login') }}" class="btn btn-primary me-3">Login to Get Started</a>
+                    <a href="{{ route('register') }}" class="btn btn-outline-primary">Create Account</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Carousel -->
     <div class="container mt-4 mb-4">

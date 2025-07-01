@@ -12,15 +12,21 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $table = 'users';
+    protected $primaryKey = 'id_user';
+
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'username',
         'email',
         'password',
+        'nama_lengkap',
+        'no_telepon',
+        'alamat',
     ];
 
     /**
@@ -30,7 +36,6 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     /**
@@ -39,7 +44,22 @@ class User extends Authenticatable
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    // Relationships
+    public function inputUser()
+    {
+        return $this->hasMany(InputUser::class, 'id_user', 'id_user');
+    }
+
+    // Get user's input history with results
+    public function getInputHistory()
+    {
+        return $this->inputUser()
+            ->selectRaw('id_input, created_at')
+            ->groupBy('id_input', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
 }
