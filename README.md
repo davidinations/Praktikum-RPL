@@ -1,6 +1,6 @@
 # PENTING
 
--   Install Laravel Menggunakan Laragon (https://mega.nz/file/dTRUECZI#5y8cEuIwG8tjQFaX18eMFt6CPpZ6rcPAQILcUkXJn60)
+-   Install Laravel Menggunakan [Laragon](https://mega.nz/file/dTRUECZI#5y8cEuIwG8tjQFaX18eMFt6CPpZ6rcPAQILcUkXJn60)
 -   Pastikan Sudah menginstal [Composer](https://getcomposer.org/download/) dan Environment php (Laragon) sudah terhubung dengan Composer.
 -   Setelah Install Clone repository ini
 -   Masuk Ke Direktori Project Ini dan jalankan perintah `composer install` untuk menginstal dependensi yang diperlukan.
