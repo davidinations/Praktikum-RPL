@@ -84,6 +84,22 @@ class UserController extends Controller
             'preferences.*' => 'required|integer|between:1,5'
         ]);
 
+        // Extract budget range inputs if present
+        $budgetRanges = [];
+        foreach ($request->all() as $key => $value) {
+            if (strpos($key, 'price_min_') === 0) {
+                $criteriaId = str_replace('price_min_', '', $key);
+                if (!empty($value)) {
+                    $budgetRanges[$criteriaId]['min'] = (int) str_replace(['.', ','], '', $value);
+                }
+            } elseif (strpos($key, 'price_max_') === 0) {
+                $criteriaId = str_replace('price_max_', '', $key);
+                if (!empty($value)) {
+                    $budgetRanges[$criteriaId]['max'] = (int) str_replace(['.', ','], '', $value);
+                }
+            }
+        }
+
         try {
             DB::beginTransaction();
 
@@ -100,8 +116,23 @@ class UserController extends Controller
                 ]);
             }
 
-            // Calculate SAW results
-            $results = $this->sawService->calculateSAW($idInput, Auth::id());
+            // Save budget ranges if provided
+            foreach ($budgetRanges as $criteriaId => $range) {
+                if (isset($range['min']) && isset($range['max'])) {
+                    DB::table('input_user_budget_ranges')->insert([
+                        'id_input' => $idInput,
+                        'id_user' => Auth::id(),
+                        'id_kriteria' => $criteriaId,
+                        'min_budget' => $range['min'],
+                        'max_budget' => $range['max'],
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+            }
+
+            // Calculate SAW results with budget filtering
+            $results = $this->sawService->calculateSAWWithBudgetFilter($idInput, Auth::id(), $budgetRanges);
 
             DB::commit();
 
@@ -127,13 +158,31 @@ class UserController extends Controller
             return redirect()->route('user.dashboard')->with('error', 'Results not found.');
         }
 
-        // Get ranking results
-        $results = HasilInputUser::getRankingResults($idInput);
+        // Get ranking results using the new relationship method
+        $results = HasilInputUser::getRankingResultsWithPreferences($idInput);
 
-        // Get user preferences for this input
+        // Get user preferences for this input (alternative using relationship)
         $userPreferences = InputUser::getInputSession($idInput);
 
-        return view('user.results', compact('results', 'userPreferences', 'idInput'));
+        // Get detailed matching analysis with price ordering
+        $matchingAnalysis = $this->sawService->getLaptopMatchingAnalysisWithPriceOrdering($idInput);
+
+        // Get overlapping price rating bands if user has price input
+        $overlappingPriceBands = [];
+        $userBudgetRange = $this->sawService->getUserActualBudgetRange($idInput, $user->id_user);
+
+        if ($userBudgetRange) {
+            $priceCriteria = MasterKriteria::where('nama', 'like', '%harga%')->first();
+            if ($priceCriteria) {
+                $overlappingPriceBands = $this->sawService->findOverlappingPriceRatingBands(
+                    $userBudgetRange['min'],
+                    $userBudgetRange['max'],
+                    $priceCriteria
+                );
+            }
+        }
+
+        return view('user.results', compact('results', 'userPreferences', 'idInput', 'matchingAnalysis', 'overlappingPriceBands', 'userBudgetRange'));
     }
 
     // View History
@@ -163,5 +212,73 @@ class UserController extends Controller
         $criteria = MasterKriteria::all();
 
         return view('user.compare', compact('laptops', 'criteria'));
+    }
+
+    // Test Enhanced SAW calculation
+    public function testEnhancedSAW()
+    {
+        $result = $this->sawService->demoEnhancedSAW();
+
+        if (isset($result['error'])) {
+            return view('test.saw', ['error' => $result['error']]);
+        }
+
+        return view('test.saw', ['result' => $result]);
+    }
+
+    // Demonstrate model relationships
+    public function testRelationships()
+    {
+        try {
+            // Get a sample input session
+            $inputUser = InputUser::with(['kriteria', 'hasilInputUser.laptop'])->first();
+
+            if (!$inputUser) {
+                return response()->json(['error' => 'No input data found'], 404);
+            }
+
+            $idInput = $inputUser->id_input;
+
+            // Test 1: Get input session with results using relationship
+            $inputWithResults = InputUser::getInputSessionWithResults($idInput);
+
+            // Test 2: Get results with preferences using relationship
+            $resultsWithPrefs = HasilInputUser::getRankingResultsWithPreferences($idInput);
+
+            // Test 3: Get individual result with user preferences
+            $sampleResult = HasilInputUser::where('id_input', $idInput)->first();
+            $userPreferences = $sampleResult ? $sampleResult->getUserPreferences() : null;
+
+            // Test 4: Get results from input user using relationship
+            $resultsFromInput = $inputUser->getResults();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Model relationships working correctly!',
+                'id_input' => $idInput,
+                'tests' => [
+                    'input_with_results_count' => $inputWithResults->count(),
+                    'results_with_prefs_count' => $resultsWithPrefs->count(),
+                    'user_preferences_count' => $userPreferences ? $userPreferences->count() : 0,
+                    'results_from_input_count' => $resultsFromInput->count(),
+                ],
+                'sample_data' => [
+                    'input_user' => [
+                        'id_input' => $inputUser->id_input,
+                        'criterion' => $inputUser->kriteria->nama ?? 'N/A',
+                        'value' => $inputUser->value,
+                        'results_count' => $inputUser->hasilInputUser->count()
+                    ],
+                    'sample_result' => $sampleResult ? [
+                        'id_hasil_input' => $sampleResult->id_hasil_input,
+                        'laptop' => $sampleResult->laptop->merek . ' ' . $sampleResult->laptop->model,
+                        'ranking' => $sampleResult->ranking,
+                        'user_preferences_for_this_result' => $userPreferences ? $userPreferences->count() : 0
+                    ] : null
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Test failed: ' . $e->getMessage()], 500);
+        }
     }
 }

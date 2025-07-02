@@ -77,18 +77,83 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <span>{{ $pref->kriteria->nama }}:</span>
                             <div>
-                                @for($i = 1; $i <= 5; $i++)
-                                    <i class="fas fa-star {{ $i <= $pref->value ? 'text-warning' : 'text-light opacity-50' }}"></i>
-                                @endfor
-                                <span class="ms-1">({{ $pref->value }}/5)</span>
+                                @if(strtolower($pref->kriteria->nama) !== 'harga')
+                                    @for($i = 1; $i <= 5; $i++)
+                                        <i class="fas fa-star {{ $i <= (int)$pref->value ? 'text-warning' : 'text-light opacity-50' }}"></i>
+                                    @endfor
+                                    <span class="ms-1">({{ (int)$pref->value }}/5)</span>
+                                @else
+                                    <span class="badge bg-light text-dark">Budget Preference</span>
+                                @endif
                             </div>
+                        </div>
+                        <div class="mt-1">
+                            <small class="text-light opacity-75">
+                                @if(strtolower($pref->kriteria->nama) === 'harga')
+                                    @if(isset($overlappingPriceBands) && count($overlappingPriceBands) > 1)
+                                        <!-- Multiple overlapping price bands -->
+                                        <strong>Your Budget Range covers multiple rating bands:</strong><br>
+                                        @foreach($overlappingPriceBands as $band)
+                                            <span class="badge bg-light text-dark me-1 mb-1">
+                                                {{ $band['rating'] }}⭐: Rp {{ number_format($band['min'], 0, ',', '.') }} - Rp {{ number_format($band['max'], 0, ',', '.') }}
+                                            </span>
+                                        @endforeach
+                                        @if(isset($userBudgetRange))
+                                        <br><em>Your actual budget: Rp {{ number_format($userBudgetRange['min'], 0, ',', '.') }} - Rp {{ number_format($userBudgetRange['max'], 0, ',', '.') }}</em>
+                                        @endif
+                                    @elseif(isset($overlappingPriceBands) && count($overlappingPriceBands) == 1)
+                                        <!-- Single overlapping price band -->
+                                        @php $band = $overlappingPriceBands[0]; @endphp
+                                        Budget Range ({{ $band['rating'] }}/5 ⭐): Rp {{ number_format($band['min'], 0, ',', '.') }} - Rp {{ number_format($band['max'], 0, ',', '.') }}
+                                        @if(isset($userBudgetRange))
+                                        <br><em>Your actual budget: Rp {{ number_format($userBudgetRange['min'], 0, ',', '.') }} - Rp {{ number_format($userBudgetRange['max'], 0, ',', '.') }}</em>
+                                        @endif
+                                    @else
+                                        <!-- Fallback to original method if no overlapping bands data -->
+                                        @php
+                                            $ratingValue = (int)$pref->value; // Convert to integer
+                                            $ratingField = "rating_{$ratingValue}";
+                                            $minPrice = $pref->kriteria->{$ratingField . '_min'} ?? 0;
+                                            $maxPrice = $pref->kriteria->{$ratingField . '_max'} ?? 0;
+                                        @endphp
+                                        Budget Range : Rp {{ number_format($minPrice * 1000000, 0, ',', '.') }} - Rp {{ number_format($maxPrice * 1000000, 0, ',', '.') }}
+                                    @endif
+                                @else
+                                    @php
+                                        $ratingValue = (int)$pref->value; // Convert to integer
+                                        $ratingField = "rating_{$ratingValue}";
+                                        $minValue = $pref->kriteria->{$ratingField . '_min'} ?? 0;
+                                        $maxValue = $pref->kriteria->{$ratingField . '_max'} ?? 0;
+                                        $unit = $pref->kriteria->satuan ?? '';
+                                    @endphp
+                                    Range : {{ $minValue }} - {{ $maxValue }} {{ $unit }}
+                                @endif
+                            </small>
                         </div>
                     </div>
                     @endforeach
                 </div>
-                <small class="text-light opacity-75">
-                    <i class="fas fa-info-circle"></i> Results calculated using SAW (Simple Additive Weighting) method based on your preferences
-                </small>
+                <div class="mt-3">
+                    <small class="text-light opacity-75">
+                        <i class="fas fa-info-circle"></i> Results ordered by laptops whose overall quality is closest to your ideal SAW score
+                    </small>
+                    @if(isset($matchingAnalysis[0]['user_preference_average_saw']))
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-light"><i class="fas fa-calculator"></i> Your Ideal SAW Score:</small>
+                            <div class="d-flex align-items-center">
+                                <div class="progress bg-light bg-opacity-25" style="width: 100px; height: 6px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ $matchingAnalysis[0]['user_preference_average_saw'] }}%"></div>
+                                </div>
+                                <span class="ms-2 text-warning fw-bold">{{ $matchingAnalysis[0]['user_preference_average_saw'] }}%</span>
+                            </div>
+                        </div>
+                        <small class="text-light opacity-75">
+                            Laptops are ranked by how close their overall quality matches your ideal preference combination.
+                        </small>
+                    </div>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -102,9 +167,12 @@
         </div>
 
         @if($results->count() > 0)
-            <!-- Top 3 Recommendations -->
+            <!-- Top 3 Recommendations with Detailed Analysis -->
             <div class="row mb-4">
-                @foreach($results->take(3) as $result)
+                @foreach($results->take(3) as $index => $result)
+                @php
+                    $analysis = isset($matchingAnalysis[$index]) ? $matchingAnalysis[$index] : null;
+                @endphp
                 <div class="col-lg-4 mb-4">
                     <div class="card laptop-card shadow position-relative h-100">
                         <!-- Ranking Badge -->
@@ -138,11 +206,17 @@
                         <div class="card-body">
                             <h5 class="card-title">{{ $result->laptop->merek }} {{ $result->laptop->model }}</h5>
                             
-                            <!-- Score -->
+                            <!-- Overall Match Score -->
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <small class="text-muted">Match Score</small>
-                                    <small class="text-muted">{{ number_format($result->rating * 100, 1) }}%</small>
+                                    <small class="text-muted">Overall Match</small>
+                                    <small class="text-muted">
+                                        @if($analysis)
+                                            {{ $analysis['combined_score'] }}%
+                                        @else
+                                            {{ number_format($result->rating * 100, 1) }}%
+                                        @endif
+                                    </small>
                                 </div>
                                 <div class="progress score-progress">
                                     <div class="progress-bar 
@@ -150,18 +224,188 @@
                                         @elseif($result->ranking == 2) bg-secondary 
                                         @elseif($result->ranking == 3) bg-info
                                         @else bg-primary @endif" 
-                                         style="width: {{ $result->rating * 100 }}%"></div>
+                                         style="width: {{ $analysis ? $analysis['combined_score'] : $result->rating * 100 }}%"></div>
                                 </div>
+                                @if($analysis)
+                                <div class="mt-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-chart-pie"></i> Preference: {{ $analysis['preference_match_percentage'] }}% | 
+                                        <i class="fas fa-dollar-sign"></i> Price: {{ $analysis['price_proximity_score'] }}%
+                                        @if(isset($analysis['quality_closeness_to_ideal']))
+                                        | <i class="fas fa-bullseye"></i> Gap: {{ $analysis['quality_closeness_to_ideal'] }}%
+                                        @endif
+                                    </small>
+                                </div>
+                                @endif
                             </div>
+
+                            <!-- SAW Score Breakdown -->
+                            @if($analysis && isset($analysis['user_saw_score']) && isset($analysis['pure_saw_score']))
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-2"><i class="fas fa-calculator"></i> SAW Score Analysis:</h6>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <small class="text-muted d-block">User-Laptop Match</small>
+                                            <strong class="text-primary">{{ $analysis['user_saw_score'] }}%</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-center p-2 bg-light rounded">
+                                            <small class="text-muted d-block">Overall Quality</small>
+                                            <strong class="text-success">{{ $analysis['pure_saw_score'] }}%</strong>
+                                        </div>
+                                    </div>
+                                    @if(isset($analysis['user_preference_average_saw']))
+                                    <div class="col-4">
+                                        <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
+                                            <small class="text-muted d-block">Your Ideal</small>
+                                            <strong class="text-warning">{{ $analysis['user_preference_average_saw'] }}%</strong>
+                                        </div>
+                                    </div>
+                                    @endif
+                                </div>
+                                @if(isset($analysis['quality_closeness_to_ideal']))
+                                <div class="mt-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">Quality Gap from Ideal:</small>
+                                        <span class="badge 
+                                            @if($analysis['quality_closeness_to_ideal'] <= 10) bg-success
+                                            @elseif($analysis['quality_closeness_to_ideal'] <= 20) bg-warning
+                                            @else bg-danger
+                                            @endif">
+                                            {{ $analysis['quality_closeness_to_ideal'] }}%
+                                        </span>
+                                    </div>
+                                    <div class="progress mt-1" style="height: 4px;">
+                                        <div class="progress-bar 
+                                            @if($analysis['quality_closeness_to_ideal'] <= 10) bg-success
+                                            @elseif($analysis['quality_closeness_to_ideal'] <= 20) bg-warning
+                                            @else bg-danger
+                                            @endif" 
+                                             style="width: {{ min(100, $analysis['quality_closeness_to_ideal'] * 2) }}%"></div>
+                                    </div>
+                                </div>
+                                @endif
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="fas fa-info-circle"></i> User-Laptop: How well this laptop matches your specific preferences. 
+                                    Overall Quality: The laptop's general performance rating across all criteria.
+                                    @if(isset($analysis['user_preference_average_saw']))
+                                    Your Ideal: The SAW score of your perfect laptop based on your ratings.
+                                    @endif
+                                    @if(isset($analysis['quality_closeness_to_ideal']))
+                                    <br><i class="fas fa-bullseye"></i> Quality Gap: {{ $analysis['quality_closeness_to_ideal'] }}% from your ideal
+                                    @endif
+                                </small>
+                            </div>
+                            @endif
+
+                            <!-- Criteria Match Details -->
+                            @if($analysis && isset($analysis['criteria_match']))
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-2">Criteria Match:</h6>
+                                @foreach($analysis['criteria_match'] as $criteriaMatch)
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">{{ $criteriaMatch['criterion'] }}:</small>
+                                        <span class="badge 
+                                            @if($criteriaMatch['match_percentage'] >= 80) bg-success
+                                            @elseif($criteriaMatch['match_percentage'] >= 60) bg-warning
+                                            @else bg-danger
+                                            @endif"
+                                            style="font-size: 0.65rem;">
+                                            {{ $criteriaMatch['match_percentage'] }}%
+                                        </span>
+                                    </div>
+                                    
+                                    @if(strtolower($criteriaMatch['criterion']) === 'harga' && isset($criteriaMatch['actual_price']))
+                                        <!-- Price Information with Multiple Rating Bands -->
+                                        <div class="small text-muted">
+                                            <strong>Actual Price:</strong> Rp {{ number_format($criteriaMatch['actual_price'], 0, ',', '.') }}<br>
+                                            
+                                            @if(isset($overlappingPriceBands) && count($overlappingPriceBands) > 1)
+                                                <strong>Your Budget covers {{ count($overlappingPriceBands) }} rating bands:</strong><br>
+                                                @foreach($overlappingPriceBands as $band)
+                                                    <div class="mt-1">
+                                                        <span class="badge 
+                                                            @if($criteriaMatch['actual_price'] >= $band['min'] && $criteriaMatch['actual_price'] <= $band['max']) 
+                                                                bg-success 
+                                                            @else 
+                                                                bg-secondary 
+                                                            @endif text-white me-1">
+                                                            {{ $band['rating'] }}⭐
+                                                        </span>
+                                                        <small>Rp {{ number_format($band['min'], 0, ',', '.') }} - Rp {{ number_format($band['max'], 0, ',', '.') }}
+                                                        @if($criteriaMatch['actual_price'] >= $band['min'] && $criteriaMatch['actual_price'] <= $band['max'])
+                                                            <span class="text-success"> ✓ Match</span>
+                                                        @endif
+                                                        </small>
+                                                    </div>
+                                                @endforeach
+                                                @if(isset($userBudgetRange))
+                                                <div class="mt-2 p-2 bg-light rounded">
+                                                    <small><strong>Your Budget Range:</strong> Rp {{ number_format($userBudgetRange['min'], 0, ',', '.') }} - Rp {{ number_format($userBudgetRange['max'], 0, ',', '.') }}</small>
+                                                </div>
+                                                @endif
+                                            @elseif(isset($criteriaMatch['target_range']))
+                                                <strong>Your Budget Range ({{ $criteriaMatch['target_range']['rating'] ?? 'N/A' }}/5 ⭐):</strong> 
+                                                Rp {{ number_format($criteriaMatch['target_range']['min'], 0, ',', '.') }} - 
+                                                Rp {{ number_format($criteriaMatch['target_range']['max'], 0, ',', '.') }}
+                                            @endif
+                                        </div>
+                                    @else
+                                        <!-- Rating Stars for Non-Price Criteria -->
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                    <i class="fas fa-star {{ $i <= $criteriaMatch['laptop_rating'] ? 'text-warning' : 'text-muted' }}" style="font-size: 0.7rem;"></i>
+                                                @endfor
+                                            </div>
+                                            <small class="text-muted">{{ $criteriaMatch['laptop_rating'] }}/5 (Your preference: {{ $criteriaMatch['user_preference'] }}/5)</small>
+                                        </div>
+                                    @endif
+                                </div>
+                                @endforeach
+                            </div>
+                            @endif
+
+                            <!-- Strengths & Weaknesses -->
+                            @if($analysis)
+                            <div class="mb-3">
+                                @if(count($analysis['strengths']) > 0)
+                                <div class="mb-2">
+                                    <h6 class="text-success mb-1"><i class="fas fa-thumbs-up"></i> Strengths:</h6>
+                                    <div>
+                                        @foreach($analysis['strengths'] as $strength)
+                                            <span class="badge bg-success me-1">{{ $strength }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
+                                
+                                @if(count($analysis['weaknesses']) > 0)
+                                <div class="mb-2">
+                                    <h6 class="text-danger mb-1"><i class="fas fa-thumbs-down"></i> Considerations:</h6>
+                                    <div>
+                                        @foreach($analysis['weaknesses'] as $weakness)
+                                            <span class="badge bg-danger me-1">{{ $weakness }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            @endif
 
                             <!-- Specifications -->
                             <div class="specifications">
                                 <p class="mb-1"><strong>Price:</strong> Rp {{ number_format($result->laptop->harga, 0, ',', '.') }}</p>
                                 <p class="mb-1"><strong>Processor:</strong> {{ $result->laptop->processor }}</p>
-                                <p class="mb-1"><strong>RAM:</strong> {{ $result->laptop->ram }}</p>
-                                <p class="mb-1"><strong>Storage:</strong> {{ $result->laptop->storage }}</p>
+                                <p class="mb-1"><strong>RAM:</strong> {{ $result->laptop->ram }}GB</p>
+                                <p class="mb-1"><strong>Storage:</strong> {{ $result->laptop->storage }}GB</p>
                                 <p class="mb-1"><strong>GPU:</strong> {{ $result->laptop->gpu }}</p>
-                                <p class="mb-0"><strong>Battery:</strong> {{ $result->laptop->ukuran_baterai }}</p>
+                                @if($result->laptop->ukuran_baterai)
+                                <p class="mb-0"><strong>Battery:</strong> {{ $result->laptop->ukuran_baterai }}mAh</p>
+                                @endif
                             </div>
                         </div>
 
@@ -190,7 +434,7 @@
             @if($results->count() > 3)
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-list"></i> All Results</h5>
+                    <h5 class="mb-0"><i class="fas fa-list"></i> All Results - Detailed Analysis</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -200,14 +444,16 @@
                                     <th>Rank</th>
                                     <th>Laptop</th>
                                     <th>Price</th>
-                                    <th>Processor</th>
-                                    <th>RAM</th>
-                                    <th>Storage</th>
-                                    <th>Score</th>
+                                    <th>Quality Gap</th>
+                                    <th>Overall Match</th>
+                                    <th>SAW Scores</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($results->skip(3) as $result)
+                                @foreach($results->skip(3) as $index => $result)
+                                @php
+                                    $analysis = isset($matchingAnalysis[$index + 3]) ? $matchingAnalysis[$index + 3] : null;
+                                @endphp
                                 <tr>
                                     <td>
                                         <span class="badge bg-primary">#{{ $result->ranking }}</span>
@@ -217,16 +463,51 @@
                                         <small class="text-muted">{{ $result->laptop->model }}</small>
                                     </td>
                                     <td>Rp {{ number_format($result->laptop->harga, 0, ',', '.') }}</td>
-                                    <td>{{ $result->laptop->processor }}</td>
-                                    <td>{{ $result->laptop->ram }}</td>
-                                    <td>{{ $result->laptop->storage }}</td>
                                     <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-primary" 
-                                                 style="width: {{ $result->rating * 100 }}%">
-                                                {{ number_format($result->rating * 100, 1) }}%
+                                        @if($analysis && isset($analysis['quality_closeness_to_ideal']))
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge 
+                                                    @if($analysis['quality_closeness_to_ideal'] <= 10) bg-success
+                                                    @elseif($analysis['quality_closeness_to_ideal'] <= 20) bg-warning
+                                                    @else bg-danger
+                                                    @endif me-2">
+                                                    {{ $analysis['quality_closeness_to_ideal'] }}%
+                                                </span>
+                                                <small class="text-muted">gap</small>
                                             </div>
-                                        </div>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($analysis)
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar 
+                                                    @if($analysis['combined_score'] >= 80) bg-success
+                                                    @elseif($analysis['combined_score'] >= 60) bg-warning
+                                                    @else bg-danger
+                                                    @endif" 
+                                                     style="width: {{ $analysis['combined_score'] }}%">
+                                                    {{ $analysis['combined_score'] }}%
+                                                </div>
+                                            </div>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($analysis && isset($analysis['user_saw_score']) && isset($analysis['pure_saw_score']))
+                                            <small class="text-muted d-block">User-Match: </small>
+                                            <strong class="text-primary">{{ $analysis['user_saw_score'] }}%</strong>
+                                            <small class="text-muted d-block">Quality: </small>
+                                            <strong class="text-success">{{ $analysis['pure_saw_score'] }}%</strong>
+                                            @if(isset($analysis['user_preference_average_saw']))
+                                            <small class="text-muted d-block">Your Ideal: </small>
+                                            <strong class="text-warning">{{ $analysis['user_preference_average_saw'] }}%</strong>
+                                            @endif
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
                                     </td>
                                 </tr>
                                 @endforeach
@@ -236,6 +517,84 @@
                 </div>
             </div>
             @endif
+
+            <!-- Analysis Explanation -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> How We Calculate Your Match</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-calculator"></i> Quality Gap Ordering</h6>
+                            <p class="text-muted">
+                                Laptops are ordered by how close their overall quality (pure SAW score) is to your ideal SAW score. 
+                                Lower gaps mean the laptop's specifications better match your preference combination.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-target"></i> Quality Gap Indicator</h6>
+                            <p class="text-muted">
+                                Green: ≤10% gap (excellent match), Yellow: 11-20% gap (good match), Red: >20% gap (poor match). 
+                                This helps you quickly identify laptops that best align with your preferences.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-chart-line"></i> Combined Match Score</h6>
+                            <p class="text-muted">
+                                Overall match combines preference alignment (70%) and price proximity (30%). 
+                                This score shows how well the laptop fits your specific needs and budget.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-sort-amount-down"></i> Smart Ordering</h6>
+                            <p class="text-muted">
+                                Results are ordered by laptops whose overall quality SAW score is closest to your ideal preference score. 
+                                This helps you find laptops that best match your quality expectations.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-user-cog"></i> User-Laptop SAW Score</h6>
+                            <p class="text-muted">
+                                This score reflects how well the laptop matches your specific preferences using the SAW method. 
+                                It weighs each criterion based on your individual rating importance.
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-laptop"></i> Laptop Overall Quality Score</h6>
+                            <p class="text-muted">
+                                This is the laptop's pure SAW score based only on admin-defined criteria weights. 
+                                It shows the laptop's general performance quality regardless of your preferences.
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-star"></i> Your Ideal SAW Score</h6>
+                            <p class="text-muted">
+                                This represents the SAW score your ideal laptop would have based on your preference ratings. 
+                                Compare laptop scores to this to see how close they come to your perfect match.
+                            </p>
+                        </div>
+                    </div>
+                    @if(isset($overlappingPriceBands) && count($overlappingPriceBands) > 1)
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-money-bill-wave"></i> Multiple Price Rating Bands</h6>
+                                <p class="text-muted mb-0">
+                                    Your budget range spans across {{ count($overlappingPriceBands) }} different price rating bands. 
+                                    We show all relevant bands to help you understand how your budget compares to different laptop price categories. 
+                                    Laptops matching any of these bands will be included in your results.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
 
         @else
             <div class="alert alert-warning">
