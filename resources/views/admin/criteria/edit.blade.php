@@ -59,11 +59,59 @@
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="bobot" class="form-label">Weight *</label>
+                            <label for="bobot" class="form-label">Weight (%) *</label>
                             <input type="number" class="form-control" id="bobot" name="bobot"
-                                value="{{ old('bobot', $criteria->bobot) }}" min="0" max="1" step="0.1"
+                                value="{{ old('bobot', $criteria->bobot) }}" min="0" max="100" step="0.1"
                                 required>
-                            <div class="form-text">Weight between 0 and 1 (e.g., 0.3 for 30%)</div>
+                            <div class="form-text">Weight percentage (e.g., 35 for 35%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rating Ranges Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Rating Ranges</h5>
+                        <small class="text-muted">Define value ranges for each rating level (1-5 stars)</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @for($i = 1; $i <= 5; $i++)
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">
+                                    <strong>Rating {{ $i }}</strong>
+                                    @for($j = 1; $j <= 5; $j++)
+                                        @if($j <= $i)
+                                            <span class="text-warning">★</span>
+                                        @else
+                                            <span class="text-muted">☆</span>
+                                        @endif
+                                    @endfor
+                                </label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <input type="number" class="form-control" 
+                                               name="rating_{{ $i }}_min" 
+                                               placeholder="Min value" 
+                                               step="0.001"
+                                               value="{{ old('rating_' . $i . '_min', $criteria->{'rating_' . $i . '_min'}) }}">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="number" class="form-control" 
+                                               name="rating_{{ $i }}_max" 
+                                               placeholder="Max value" 
+                                               step="0.001"
+                                               value="{{ old('rating_' . $i . '_max', $criteria->{'rating_' . $i . '_max'}) }}">
+                                    </div>
+                                </div>
+                            </div>
+                            @endfor
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <small>
+                                <strong>Note:</strong> For benefit criteria (higher is better), Rating 5 should have the highest values.
+                                For cost criteria (lower is better), Rating 5 should have the lowest values.
+                            </small>
                         </div>
                     </div>
                 </div>

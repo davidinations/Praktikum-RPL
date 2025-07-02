@@ -34,18 +34,44 @@ class CriteriaManagementController extends Controller
         $request->validate([
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:255',
-            'jenis' => 'nullable|string|max:255',
-            'bobot' => 'required|numeric|min:0|max:1',
+            'jenis' => 'required|string|in:cost,benefit',
+            'bobot' => 'required|numeric|min:0|max:100',
+            // Rating range validations
+            'rating_1_min' => 'nullable|numeric',
+            'rating_1_max' => 'nullable|numeric|gte:rating_1_min',
+            'rating_2_min' => 'nullable|numeric|gt:rating_1_max',
+            'rating_2_max' => 'nullable|numeric|gte:rating_2_min',
+            'rating_3_min' => 'nullable|numeric|gt:rating_2_max',
+            'rating_3_max' => 'nullable|numeric|gte:rating_3_min',
+            'rating_4_min' => 'nullable|numeric|gt:rating_3_max',
+            'rating_4_max' => 'nullable|numeric|gte:rating_4_min',
+            'rating_5_min' => 'nullable|numeric|gt:rating_4_max',
+            'rating_5_max' => 'nullable|numeric|gte:rating_5_min',
         ]);
 
         try {
-            MasterKriteria::create([
+            $data = [
                 'id_admin' => session('admin_id'),
                 'nama' => $request->nama,
                 'satuan' => $request->satuan,
                 'jenis' => $request->jenis,
                 'bobot' => $request->bobot,
-            ]);
+            ];
+
+            // Add rating ranges if provided
+            for ($i = 1; $i <= 5; $i++) {
+                $minField = "rating_{$i}_min";
+                $maxField = "rating_{$i}_max";
+
+                if ($request->filled($minField)) {
+                    $data[$minField] = $request->$minField;
+                }
+                if ($request->filled($maxField)) {
+                    $data[$maxField] = $request->$maxField;
+                }
+            }
+
+            MasterKriteria::create($data);
 
             return redirect()->route('admin.criteria.index')->with('success', 'Criteria created successfully!');
         } catch (\Exception $e) {
@@ -68,17 +94,43 @@ class CriteriaManagementController extends Controller
         $request->validate([
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:255',
-            'bobot' => 'required|numeric|min:0|max:1',
-            'jenis' => 'nullable|string|max:255',
+            'jenis' => 'required|string|in:cost,benefit',
+            'bobot' => 'required|numeric|min:0|max:100',
+            // Rating range validations
+            'rating_1_min' => 'nullable|numeric',
+            'rating_1_max' => 'nullable|numeric|gte:rating_1_min',
+            'rating_2_min' => 'nullable|numeric|gt:rating_1_max',
+            'rating_2_max' => 'nullable|numeric|gte:rating_2_min',
+            'rating_3_min' => 'nullable|numeric|gt:rating_2_max',
+            'rating_3_max' => 'nullable|numeric|gte:rating_3_min',
+            'rating_4_min' => 'nullable|numeric|gt:rating_3_max',
+            'rating_4_max' => 'nullable|numeric|gte:rating_4_min',
+            'rating_5_min' => 'nullable|numeric|gt:rating_4_max',
+            'rating_5_max' => 'nullable|numeric|gte:rating_5_min',
         ]);
 
         try {
-            $criteria->update([
+            $data = [
                 'nama' => $request->nama,
                 'satuan' => $request->satuan,
                 'jenis' => $request->jenis,
                 'bobot' => $request->bobot,
-            ]);
+            ];
+
+            // Add rating ranges if provided
+            for ($i = 1; $i <= 5; $i++) {
+                $minField = "rating_{$i}_min";
+                $maxField = "rating_{$i}_max";
+
+                if ($request->filled($minField)) {
+                    $data[$minField] = $request->$minField;
+                }
+                if ($request->filled($maxField)) {
+                    $data[$maxField] = $request->$maxField;
+                }
+            }
+
+            $criteria->update($data);
 
             return redirect()->route('admin.criteria.index')->with('success', 'Criteria updated successfully!');
         } catch (\Exception $e) {

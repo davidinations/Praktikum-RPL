@@ -8,6 +8,7 @@ use App\Models\InputUser;
 use App\Models\HasilInputUser;
 use App\Models\DetailHasilInputUser;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SAWCalculationService
 {
@@ -19,6 +20,8 @@ class SAWCalculationService
 		try {
 			DB::beginTransaction();
 
+			Log::info("Starting SAW calculation for input: {$idInput}, user: {$idUser}");
+
 			// Get user input values
 			$userInputs = InputUser::where('id_input', $idInput)
 				->where('id_user', $idUser)
@@ -29,6 +32,8 @@ class SAWCalculationService
 				throw new \Exception('No user input data found');
 			}
 
+			Log::info("Found {$userInputs->count()} user preferences");
+
 			// Get all laptops
 			$laptops = MasterLaptop::all();
 
@@ -36,8 +41,12 @@ class SAWCalculationService
 				throw new \Exception('No laptops found in database');
 			}
 
+			Log::info("Found {$laptops->count()} laptops to evaluate");
+
 			// Get criteria with weights
 			$criteria = MasterKriteria::all();
+
+			Log::info("Using {$criteria->count()} criteria for calculation");
 
 			// Prepare laptop data matrix
 			$laptopMatrix = $this->prepareLaptopMatrix($laptops, $criteria);
@@ -56,9 +65,12 @@ class SAWCalculationService
 
 			DB::commit();
 
+			Log::info("SAW calculation completed successfully. Top laptop: " . $rankedLaptops[0]['id_laptop'] . " with score: " . number_format($rankedLaptops[0]['score'], 4));
+
 			return $rankedLaptops;
 		} catch (\Exception $e) {
 			DB::rollback();
+			Log::error('SAWCalculationService error: ' . $e->getMessage());
 			throw $e;
 		}
 	}
@@ -92,18 +104,13 @@ class SAWCalculationService
 	{
 		switch (strtolower($criterion->nama)) {
 			case 'harga':
-				return (float) $laptop->harga;
+				return (float) ($laptop->harga / 1000000); // Convert to millions
 			case 'processor':
-				return $this->normalizeProcessor($laptop->processor);
+				return (float) $laptop->ghz; // Use the GHz value directly
 			case 'ram':
-				return $this->extractNumericValue($laptop->ram);
+				return (float) $laptop->ram;
 			case 'storage':
-				return $this->extractStorageValue($laptop->storage);
-			case 'gpu':
-				return $this->normalizeGPU($laptop->gpu);
-			case 'baterai':
-			case 'ukuran_baterai':
-				return $this->extractNumericValue($laptop->ukuran_baterai);
+				return (float) $laptop->storage;
 			default:
 				return 1; // Default value
 		}
@@ -114,21 +121,8 @@ class SAWCalculationService
 	 */
 	private function normalizeProcessor($processor)
 	{
-		$processor = strtolower($processor);
-
-		// Intel processors
-		if (strpos($processor, 'i9') !== false) return 9;
-		if (strpos($processor, 'i7') !== false) return 7;
-		if (strpos($processor, 'i5') !== false) return 5;
-		if (strpos($processor, 'i3') !== false) return 3;
-
-		// AMD processors
-		if (strpos($processor, 'ryzen 9') !== false) return 9;
-		if (strpos($processor, 'ryzen 7') !== false) return 7;
-		if (strpos($processor, 'ryzen 5') !== false) return 5;
-		if (strpos($processor, 'ryzen 3') !== false) return 3;
-
-		return 1; // Default for other processors
+		// This method is now deprecated as we use GHz values directly
+		return 1;
 	}
 
 	/**
@@ -193,34 +187,44 @@ class SAWCalculationService
 	}
 
 	/**
-	 * Normalize the matrix using min-max normalization
+	 * Get laptop rating for specific criterion based on admin-defined ranges
+	 */
+	private function getLaptopRatingForCriterion($laptop, $criterion)
+	{
+		$value = $this->getLaptopValueForCriterion($laptop, $criterion);
+
+		// Check which rating range the value falls into
+		for ($rating = 1; $rating <= 5; $rating++) {
+			$minField = "rating_{$rating}_min";
+			$maxField = "rating_{$rating}_max";
+
+			if (isset($criterion->$minField) && isset($criterion->$maxField)) {
+				if ($value >= $criterion->$minField && $value <= $criterion->$maxField) {
+					return $rating;
+				}
+			}
+		}
+
+		// Default rating if no range matches
+		return 1;
+	}
+
+	/**
+	 * Normalize the matrix using rating-based approach
+	 * Uses admin-defined rating ranges for each criterion
 	 */
 	private function normalizeMatrix($matrix, $criteria)
 	{
 		$normalizedMatrix = [];
 
 		foreach ($criteria as $criterion) {
-			$values = [];
 			foreach ($matrix as $laptopId => $data) {
-				$values[] = $data['values'][$criterion->id_kriteria];
-			}
+				$rating = $this->getLaptopRatingForCriterion($data['laptop'], $criterion);
 
-			$maxValue = max($values);
-			$minValue = min($values);
+				// Normalize rating to 0-1 scale (1=0.2, 2=0.4, 3=0.6, 4=0.8, 5=1.0)
+				$normalizedValue = $rating / 5.0;
 
-			foreach ($matrix as $laptopId => $data) {
-				$value = $data['values'][$criterion->id_kriteria];
-
-				// For cost criteria (like price), use min/max for benefit criteria use max/min
-				if (strtolower($criterion->nama) === 'harga') {
-					// Cost criterion - lower is better
-					$normalized = $maxValue != $minValue ? ($maxValue - $value) / ($maxValue - $minValue) : 1;
-				} else {
-					// Benefit criterion - higher is better
-					$normalized = $maxValue != $minValue ? ($value - $minValue) / ($maxValue - $minValue) : 1;
-				}
-
-				$normalizedMatrix[$laptopId][$criterion->id_kriteria] = $normalized;
+				$normalizedMatrix[$laptopId][$criterion->id_kriteria] = $normalizedValue;
 			}
 		}
 
@@ -309,6 +313,61 @@ class SAWCalculationService
 					]);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Determine if a criterion is a cost type (lower is better) or benefit type (higher is better)
+	 */
+	private function isCostCriterion($criterion)
+	{
+		// Check the 'jenis' field first
+		if (!empty($criterion->jenis)) {
+			return strtolower($criterion->jenis) === 'cost';
+		}
+
+		// Fallback to name-based detection for backward compatibility
+		$costCriteria = ['harga', 'price', 'cost'];
+		return in_array(strtolower($criterion->nama), $costCriteria);
+	}
+
+	/**
+	 * Get default laptop image based on laptop ID
+	 */
+	public function getDefaultLaptopImage($laptopId)
+	{
+		$defaultImages = ['laptop1.webp', 'laptop2.webp', 'laptop3.webp', 'laptop4.webp', 'laptop5.webp'];
+		return $defaultImages[($laptopId - 1) % count($defaultImages)];
+	}
+
+	/**
+	 * Get laptop image path (either custom or default)
+	 */
+	public function getLaptopImagePath($laptop)
+	{
+		if ($laptop->gambar && file_exists(storage_path('app/public/laptops/' . $laptop->gambar))) {
+			return 'storage/laptops/' . $laptop->gambar;
+		}
+
+		return 'images/' . $this->getDefaultLaptopImage($laptop->id_laptop);
+	}
+
+	/**
+	 * Debug method to analyze the normalization results
+	 */
+	public function debugNormalization($matrix, $criteria)
+	{
+		foreach ($criteria as $criterion) {
+			$values = [];
+			foreach ($matrix as $laptopId => $data) {
+				$values[] = $data['values'][$criterion->id_kriteria];
+			}
+
+			$maxValue = max($values);
+			$minValue = min($values);
+			$isCost = $this->isCostCriterion($criterion);
+
+			Log::info("Criterion: {$criterion->nama} | Type: " . ($isCost ? 'COST' : 'BENEFIT') . " | Min: {$minValue} | Max: {$maxValue} | Jenis: {$criterion->jenis}");
 		}
 	}
 }

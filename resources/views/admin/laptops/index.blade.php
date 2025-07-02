@@ -60,7 +60,9 @@
                     </table>
                 </div>
                 
-                {{ $laptops->links() }}
+                <div class="d-flex justify-content-center mt-4">
+                    {{ $laptops->links('pagination::bootstrap-4') }}
+                </div>
             @else
                 <div class="text-center py-4">
                     <i class="bi bi-laptop" style="font-size: 3rem; color: #ccc;"></i>

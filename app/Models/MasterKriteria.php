@@ -17,7 +17,17 @@ class MasterKriteria extends Model
         'nama',
         'satuan',
         'jenis',
-        'bobot'
+        'bobot',
+        'rating_1_min',
+        'rating_1_max',
+        'rating_2_min',
+        'rating_2_max',
+        'rating_3_min',
+        'rating_3_max',
+        'rating_4_min',
+        'rating_4_max',
+        'rating_5_min',
+        'rating_5_max'
     ];
 
     public function admin()

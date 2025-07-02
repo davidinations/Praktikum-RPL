@@ -21,9 +21,9 @@
                                 <th>Name</th>
                                 <th>Unit</th>
                                 <th>Type</th>
-                                <th>Weight</th>
+                                <th>Weight (%)</th>
+                                <th>Rating Ranges</th>
                                 <th>Created By</th>
-                                <th>Created At</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -31,20 +31,33 @@
                             @foreach ($criteria as $criterium)
                                 <tr>
                                     <td>{{ $criterium->id_kriteria }}</td>
-                                    <td>{{ $criterium->nama }}</td>
+                                    <td><strong>{{ $criterium->nama }}</strong></td>
                                     <td>{{ $criterium->satuan }}</td>
-                                    <td>{{ $criterium->jenis }}</td>
-                                    <td>{{ $criterium->bobot }}</td>
+                                    <td>
+                                        <span class="badge {{ $criterium->jenis == 'cost' ? 'bg-danger' : 'bg-success' }}">
+                                            {{ ucfirst($criterium->jenis) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ $criterium->bobot }}%</td>
+                                    <td>
+                                        @if($criterium->rating_1_min !== null)
+                                            <small class="text-muted">
+                                                <div title="Rating 1">★☆☆☆☆: {{ $criterium->rating_1_min }}-{{ $criterium->rating_1_max }}</div>
+                                                <div title="Rating 5">★★★★★: {{ $criterium->rating_5_min }}-{{ $criterium->rating_5_max }}</div>
+                                            </small>
+                                        @else
+                                            <span class="badge bg-warning">Not configured</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $criterium->admin ? $criterium->admin->username_admin : '-' }}</td>
-                                    <td>{{ $criterium->created_at->format('Y-m-d H:i:s') }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ route('admin.criteria.show', $criterium->id_kriteria) }}"
-                                                class="btn btn-info btn-sm">
+                                                class="btn btn-info btn-sm" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
                                             <a href="{{ route('admin.criteria.edit', $criterium->id_kriteria) }}"
-                                                class="btn btn-warning btn-sm">
+                                                class="btn btn-warning btn-sm" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                             <form method="POST"
@@ -53,7 +66,7 @@
                                                 onsubmit="return confirm('Are you sure you want to delete this criteria?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                <button type="submit" class="btn btn-danger btn-sm" title="Delete">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </form>

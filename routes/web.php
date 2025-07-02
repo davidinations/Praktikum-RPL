@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\LaptopManagementController;
 use App\Http\Controllers\Admin\CriteriaManagementController;
+use App\Http\Controllers\KriteriaRatingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -55,6 +56,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('criteria', CriteriaManagementController::class)->parameters([
         'criteria' => 'criteria'
     ]);
+
+    // Rating API endpoint
+    Route::post('/criteria/get-rating', [KriteriaRatingController::class, 'getRating'])->name('criteria-rating.get-rating');
 });
 
 // Protected User Routes  
