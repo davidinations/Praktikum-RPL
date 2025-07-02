@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('id_admin')->nullable();
             $table->string('nama')->nullable();
             $table->string('satuan')->nullable();
+            $table->string('jenis')->nullable();
             $table->float('bobot')->nullable();
             $table->timestamps();
 

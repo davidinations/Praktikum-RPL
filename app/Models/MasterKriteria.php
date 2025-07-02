@@ -16,6 +16,7 @@ class MasterKriteria extends Model
         'id_admin',
         'nama',
         'satuan',
+        'jenis',
         'bobot'
     ];
 

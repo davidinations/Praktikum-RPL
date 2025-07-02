@@ -12,7 +12,7 @@
 
     <div class="card">
         <div class="card-body">
-            @if($criteria->count() > 0)
+            @if ($criteria->count() > 0)
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -20,6 +20,7 @@
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Unit</th>
+                                <th>Type</th>
                                 <th>Weight</th>
                                 <th>Created By</th>
                                 <th>Created At</th>
@@ -27,23 +28,29 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($criteria as $criterium)
+                            @foreach ($criteria as $criterium)
                                 <tr>
                                     <td>{{ $criterium->id_kriteria }}</td>
                                     <td>{{ $criterium->nama }}</td>
                                     <td>{{ $criterium->satuan }}</td>
+                                    <td>{{ $criterium->jenis }}</td>
                                     <td>{{ $criterium->bobot }}</td>
                                     <td>{{ $criterium->admin ? $criterium->admin->username_admin : '-' }}</td>
                                     <td>{{ $criterium->created_at->format('Y-m-d H:i:s') }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ route('admin.criteria.show', $criterium->id_kriteria) }}" class="btn btn-info btn-sm">
+                                            <a href="{{ route('admin.criteria.show', $criterium->id_kriteria) }}"
+                                                class="btn btn-info btn-sm">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <a href="{{ route('admin.criteria.edit', $criterium->id_kriteria) }}" class="btn btn-warning btn-sm">
+                                            <a href="{{ route('admin.criteria.edit', $criterium->id_kriteria) }}"
+                                                class="btn btn-warning btn-sm">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <form method="POST" action="{{ route('admin.criteria.destroy', $criterium->id_kriteria) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this criteria?')">
+                                            <form method="POST"
+                                                action="{{ route('admin.criteria.destroy', $criterium->id_kriteria) }}"
+                                                class="d-inline"
+                                                onsubmit="return confirm('Are you sure you want to delete this criteria?')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-danger btn-sm">
@@ -57,7 +64,7 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 {{ $criteria->links() }}
             @else
                 <div class="text-center py-4">

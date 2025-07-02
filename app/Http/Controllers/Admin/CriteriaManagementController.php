@@ -34,6 +34,7 @@ class CriteriaManagementController extends Controller
         $request->validate([
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:255',
+            'jenis' => 'nullable|string|max:255',
             'bobot' => 'required|numeric|min:0|max:1',
         ]);
 
@@ -42,6 +43,7 @@ class CriteriaManagementController extends Controller
                 'id_admin' => session('admin_id'),
                 'nama' => $request->nama,
                 'satuan' => $request->satuan,
+                'jenis' => $request->jenis,
                 'bobot' => $request->bobot,
             ]);
 
@@ -67,12 +69,14 @@ class CriteriaManagementController extends Controller
             'nama' => 'required|string|max:255',
             'satuan' => 'required|string|max:255',
             'bobot' => 'required|numeric|min:0|max:1',
+            'jenis' => 'nullable|string|max:255',
         ]);
 
         try {
             $criteria->update([
                 'nama' => $request->nama,
                 'satuan' => $request->satuan,
+                'jenis' => $request->jenis,
                 'bobot' => $request->bobot,
             ]);
 
