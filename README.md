@@ -1,4 +1,4 @@
-# PENTING
+# PENTING (CARA PAKAI)
 
 -   Install Laravel Menggunakan [Laragon](https://mega.nz/file/dTRUECZI#5y8cEuIwG8tjQFaX18eMFt6CPpZ6rcPAQILcUkXJn60)
 -   Pastikan Sudah menginstal [Composer](https://getcomposer.org/download/) dan Environment php (Laragon) sudah terhubung dengan Composer.
@@ -16,7 +16,8 @@
 # TO DO
 
 -   Perbaiki Logika Pada SAW Pada app/Services/SAWCalculationService.php
--   Menambah Satu Kolom Tipe Kriteria Berupa Cost Atau Value di Master Kriteria
+-   Tentukan Atribut Serta Weight Dan BenefitCost Dari SAW
+-   Menambah Satu Kolom Tipe Kriteria Berupa Cost Atau Value di Master Kriteria (SUDAH)
 
 # Gambar ERD
 
