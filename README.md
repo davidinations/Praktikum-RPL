@@ -16,6 +16,7 @@
 # TO DO
 
 -   Perbaiki Logika Pada SAW Pada app/Services/SAWCalculationService.php
+-   Menambah Satu Kolom Tipe Kriteria Berupa Cost Atau Value di Master Kriteria
 
 # Gambar ERD
 
