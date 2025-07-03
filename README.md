@@ -7,10 +7,14 @@
 -   Ubah .env.example menjadi .env
 -   Di .env konfigurasi nama database, username, dan password sesuai dengan database yang Anda gunakan.
 -   Lakukan Juga `php artisan key:generate` untuk menghasilkan kunci aplikasi yang unik.
--   Lakukan Juga `php artisan migrate --seed` untuk otomatis membuat database baru dan mengisi data penting.
+-   Lakukan Juga `php artisan migrate:refresh --seed` untuk otomatis membuat database baru dan mengisi data penting (Ini Bisa Menghilangkan Data Lama Sesuai Config Env Jadi Hati2).
 -   Cara Jalankan Aplikasi:
     -   Jalankan perintah `php artisan serve` untuk menjalankan server lokal.
     -   Buka browser dan akses `http://localhost:8000` untuk melihat aplikasi.
+-   Data Sudah Mencakup:
+    -   Data 4 Kriteria
+    -   Data 62 Laptop
+    -   Data Akun Admin
 
 # TO DO
 
